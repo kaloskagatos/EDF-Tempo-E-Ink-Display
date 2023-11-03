@@ -22,7 +22,7 @@ Le dispositif est programmé pour se réveiller à deux moments précis chaque j
 
 ## 🖥️ Matériel Utilisé
 
-- **Écran E-Ink**: T5 V2.3.1 - Écran E-Paper 2.13 pouces à faible consommation d'énergie
+- **Board ESP-32 E-Ink**: T5 V2.3.1 - Écran E-Paper 2.13 pouces à faible consommation d'énergie
   - [Lien vers le produit](https://www.lilygo.cc/products/t5-v2-3-1)
 - **Batterie**: Lithium Polymère 3,7V 820mAh
 
