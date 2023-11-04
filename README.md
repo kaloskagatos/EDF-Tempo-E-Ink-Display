@@ -26,6 +26,11 @@ Le dispositif est programmé pour se réveiller à deux moments précis chaque j
   - [Lien vers le produit](https://www.lilygo.cc/products/t5-v2-3-1)
 - **Batterie**: Lithium Polymère 3,7V 820mAh
 
+## Pré-requis 
+
+* https://github.com/ZinggJM/GxEPD
+* https://github.com/tzapu/WiFiManager
+
 ## 📄 Licence
 
 Ce projet est distribué sous la licence GNU General Public License v3.0. Pour plus de détails, veuillez consulter le fichier `LICENSE` dans ce dépôt.
