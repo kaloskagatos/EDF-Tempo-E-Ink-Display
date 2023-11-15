@@ -20,6 +20,17 @@ Pour plus d'informations sur WiFiManager, visitez [WiFiManager GitHub](https://g
 
 Le dispositif est programmé pour se réveiller à deux moments précis chaque jour : à 00h05 et à 11h05. Cela permet de synchroniser l'heure via NTP et de mettre à jour l'affichage avec les informations TEMPO les plus récentes, tout en restant en sommeil profond le reste du temps pour économiser de l'énergie.
 
+Il est possible de modifier le tableau wakeupTimes pour déclaler/ajouter des heures de réveils car EDF tarde parfois à publier les informations à 11h00
+
+```cpp
+// Tableau des heures de réveil
+const WakeupTime wakeupTimes[] = {
+  {0, 5},  // Réveil à 00:05
+  //{15, 50},  // debug
+  {11, 5}  // Réveil à 11:05
+};
+```
+
 ## 🖥️ Matériel Utilisé
 
 - **Board ESP-32 E-Ink**: T5 V2.3.1 - Écran E-Paper 2.13 pouces à faible consommation d'énergie, modèle GDEM0213B74 CH9102F [Q300]
