@@ -20,6 +20,7 @@ GxIO_Class io(SPI, /*CS=5*/ SS, /*DC=*/17, /*RST=*/16);
 GxEPD_Class display(io, /*RST=*/16, /*BUSY=*/4);
 
 const char *ntpServer = "pool.ntp.org";
+const char *accessPointName = "TempoAP";
 
 // Global variables to store TEMPO information
 String todayColor = "N/A";
@@ -30,6 +31,8 @@ String remainingWhiteDays = "??";
 String remainingRedDays = "??";
 
 bool wifiSucceeded = true;
+int currentLinePos = 0;
+int percentage = 0;
 
 void setup()
 {
@@ -38,13 +41,33 @@ void setup()
     Serial.begin(115200);
     Serial.println("Démarrage...\n");
 
+    // récupérer le voltage de la carte 
+    percentage = 0;
+    float voltage = analogRead(35) / 4096.0 * 7.05;
+    if (voltage > 1 ) { // Only display if there is a valid reading
+      percentage = 2836.9625 * pow(voltage, 4) - 43987.4889 * pow(voltage, 3) + 255233.8134 * pow(voltage, 2) - 656689.7123 * voltage + 632041.7303;
+      if (voltage >= 4.20) percentage = 100;
+      if (voltage <= 3.50) percentage = 0;
+    }
+  
+
     // Initialize display
     display.init();
-    displayText( "Initialisation...") ;
+    displayLine("Initialisation...");
+    displayLine("Adresse MAC:");
+    displayLine(WiFi.macAddress().c_str());
+    displayLine("Batterie:");
+    char line[24];
+    sprintf(line, "%5.3fv (%d%%)",voltage,percentage);
+    displayLine(line);
+    displayLine("SSID de config:");
+    displayLine(accessPointName);
     display.update();
 
     // Connecter au WiFi
     if (!connectToWiFi()) {
+      displayLine("Erreur de connexion");  
+      display.update();
       Serial.println("Erreur de connexion WiFi, utilisation de l'heure RTC si disponible.");
       // Pas de gestion d'erreur, on tente d'utiliser la date RTC
       wifiSucceeded = false ;
@@ -54,7 +77,7 @@ void setup()
     if( !initializeTime() ) 
     {
       Serial.println("Erreur de synchronisation NTP, passage en deep sleep pendant 6 heures.");
-      displayText("Erreur de connexion ou  desynchronisation, passage en deep sleep.");
+      displayLine("Err de conn ou desynchro, deep sleep.");
       display.update();
       // Deep sleep for 6 hours
       esp_sleep_enable_timer_wakeup(6 * 60 * 60 * 1000000LL);
@@ -97,7 +120,7 @@ bool connectToWiFi() {
 
     // Essayez de se connecter avec les identifiants précédemment enregistrés,
     // sinon, ouvre un portail de configuration AP.
-    bool res = wm.autoConnect("TempoAP"); 
+    bool res = wm.autoConnect(accessPointName); 
 
     if(!res) {
         Serial.println("Échec de connexion au WiFi et temps d'attente dépassé.");
@@ -148,13 +171,16 @@ bool initializeTime() {
   return true;
 }
 
-
-void displayText( const String &text )
+void displayLine(String text)
 {
-    display.fillScreen(GxEPD_WHITE);
-    display.setTextColor(GxEPD_BLACK);
-    display.setCursor(0, 10);
-    display.print(text);
+  if (currentLinePos > 150) {
+      currentLinePos = 0;
+      display.fillScreen(GxEPD_WHITE);
+  }
+  display.setTextColor(GxEPD_BLACK);
+  display.setCursor(10,currentLinePos);
+  display.print(text);
+  currentLinePos += 10; 
 }
 
 // Helper functions to get French abbreviations
@@ -228,7 +254,6 @@ void displayInfo() {
     const int textRemainOffsetY = 6;
     const int circleOffsetX = 90;
     const int exclamantionOffsetX = 65;
-
     // Set the display rotation
     display.setRotation(rotation);
 
@@ -251,6 +276,39 @@ void displayInfo() {
     display.setFont(&FreeSansBold12pt7b);
     display.setCursor(leftMargin + textOffsetX, colorTextY);
     display.print(todayColor);
+
+    // Draw battery Level
+    // Horizontal
+    const int batteryTopMargin = 10;
+    const int batteryWidth = 14;
+    const int batteryHeight = 6;    
+    display.drawLine(leftMargin + textOffsetX, colorTextY + batteryTopMargin, leftMargin + textOffsetX + batteryWidth, colorTextY + batteryTopMargin, GxEPD_BLACK);
+    display.drawLine(leftMargin + textOffsetX, colorTextY + batteryTopMargin + batteryHeight, leftMargin + textOffsetX + batteryWidth, colorTextY + batteryTopMargin + batteryHeight, GxEPD_BLACK);
+    // Vertical
+    display.drawLine(leftMargin + textOffsetX, colorTextY + batteryTopMargin, leftMargin + textOffsetX, colorTextY + batteryTopMargin + batteryHeight, GxEPD_BLACK);
+    display.drawLine(leftMargin + textOffsetX + batteryWidth, colorTextY + batteryTopMargin, leftMargin + textOffsetX + batteryWidth, colorTextY + batteryTopMargin + batteryHeight, GxEPD_BLACK);
+    // + Pole
+    display.drawLine(leftMargin + textOffsetX + batteryWidth + 1, colorTextY + batteryTopMargin + 1, leftMargin + textOffsetX + batteryWidth + 1, colorTextY + batteryTopMargin + 5, GxEPD_BLACK);
+    display.drawLine(leftMargin + textOffsetX + batteryWidth + 2, colorTextY + batteryTopMargin + 1, leftMargin + textOffsetX + batteryWidth + 2, colorTextY + batteryTopMargin + 5, GxEPD_BLACK);
+    
+    // blocks dumb way, TO REFACTOR
+    if (percentage > 0 ) {
+      display.drawLine(leftMargin + textOffsetX + 2, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 2, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
+      display.drawLine(leftMargin + textOffsetX + 3, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 3, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
+    }
+    if (percentage > 25) {
+        display.drawLine(leftMargin + textOffsetX + 5, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 5, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
+        display.drawLine(leftMargin + textOffsetX + 6, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 6, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
+    }
+    if (percentage > 50) {
+        display.drawLine(leftMargin + textOffsetX + 8, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 8, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
+        display.drawLine(leftMargin + textOffsetX + 9, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 9, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
+    }
+    if (percentage > 75) {
+        display.drawLine(leftMargin + textOffsetX + 11, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 11, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
+        display.drawLine(leftMargin + textOffsetX + 12, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 12, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
+    }
+
 
     // Draw the second rectangle (for tomorrow)
     display.drawRoundRect(secondRectX, topMargin, rectWidth, rectHeight, borderRadius, GxEPD_BLACK);
