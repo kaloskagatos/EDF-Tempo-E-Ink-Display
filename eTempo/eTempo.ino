@@ -7,6 +7,7 @@
 #include <HTTPClient.h>
 #include "time.h"
 #include <WiFiManager.h> 
+#include<math.h>
 
 #include <Fonts/FreeSans9pt7b.h>
 #include <Fonts/FreeSansBold9pt7b.h>
@@ -205,8 +206,8 @@ String getCurrentDateString() {
     String dayOfWeek = getDayOfWeekInFrench(timeinfo.tm_wday);
     String month = getMonthInFrench(timeinfo.tm_mon + 1); // tm_mon is months since January - [0,11]
     char dayMonthBuffer[10];
-    snprintf(dayMonthBuffer, sizeof(dayMonthBuffer), "%02d %s", timeinfo.tm_mday, month.c_str());
-    
+    snprintf(dayMonthBuffer, sizeof(dayMonthBuffer), "%02d %s", timeinfo.tm_mday, month.c_str());        
+        
     return dayOfWeek + " " + String(dayMonthBuffer);
 }
 
@@ -278,38 +279,34 @@ void displayInfo() {
     display.print(todayColor);
 
     // Draw battery Level
-    // Horizontal
     const int batteryTopMargin = 10;
-    const int batteryWidth = 14;
-    const int batteryHeight = 6;    
-    display.drawLine(leftMargin + textOffsetX, colorTextY + batteryTopMargin, leftMargin + textOffsetX + batteryWidth, colorTextY + batteryTopMargin, GxEPD_BLACK);
-    display.drawLine(leftMargin + textOffsetX, colorTextY + batteryTopMargin + batteryHeight, leftMargin + textOffsetX + batteryWidth, colorTextY + batteryTopMargin + batteryHeight, GxEPD_BLACK);
+    const int nbBars = 4;
+    const int barWidth = 3;
+    const int batteryWidth = (barWidth + 1) * nbBars + 2;
+    const int barHeight = 4;
+    const int batteryHeight = barHeight + 4; 
+    const int batteryTopLeftX = leftMargin + textOffsetX;
+    const int batteryTopLeftY = colorTextY + batteryTopMargin;
+
+    // Horizontal
+    display.drawLine(batteryTopLeftX, batteryTopLeftY, batteryTopLeftX + batteryWidth, batteryTopLeftY , GxEPD_BLACK);
+    display.drawLine(batteryTopLeftX, batteryTopLeftY + batteryHeight, batteryTopLeftX + batteryWidth, batteryTopLeftY + batteryHeight, GxEPD_BLACK);
     // Vertical
-    display.drawLine(leftMargin + textOffsetX, colorTextY + batteryTopMargin, leftMargin + textOffsetX, colorTextY + batteryTopMargin + batteryHeight, GxEPD_BLACK);
-    display.drawLine(leftMargin + textOffsetX + batteryWidth, colorTextY + batteryTopMargin, leftMargin + textOffsetX + batteryWidth, colorTextY + batteryTopMargin + batteryHeight, GxEPD_BLACK);
+    display.drawLine(batteryTopLeftX, batteryTopLeftY, batteryTopLeftX, batteryTopLeftY + batteryHeight, GxEPD_BLACK);
+    display.drawLine(batteryTopLeftX + batteryWidth, batteryTopLeftY, batteryTopLeftX + batteryWidth, batteryTopLeftY + batteryHeight, GxEPD_BLACK);
     // + Pole
-    display.drawLine(leftMargin + textOffsetX + batteryWidth + 1, colorTextY + batteryTopMargin + 1, leftMargin + textOffsetX + batteryWidth + 1, colorTextY + batteryTopMargin + 5, GxEPD_BLACK);
-    display.drawLine(leftMargin + textOffsetX + batteryWidth + 2, colorTextY + batteryTopMargin + 1, leftMargin + textOffsetX + batteryWidth + 2, colorTextY + batteryTopMargin + 5, GxEPD_BLACK);
+    display.drawLine(batteryTopLeftX + batteryWidth + 1, batteryTopLeftY + 1, batteryTopLeftX + batteryWidth + 1, batteryTopLeftY + (batteryHeight - 1), GxEPD_BLACK);
+    display.drawLine(batteryTopLeftX + batteryWidth + 2, batteryTopLeftY + 1, batteryTopLeftX + batteryWidth + 2, batteryTopLeftY + (batteryHeight - 1), GxEPD_BLACK);
     
-    // blocks dumb way, TO REFACTOR
-    if (percentage > 0 ) {
-      display.drawLine(leftMargin + textOffsetX + 2, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 2, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
-      display.drawLine(leftMargin + textOffsetX + 3, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 3, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
+    int i,j;
+    int nbBarsToDraw = round(percentage / 25.0);
+    for (j = 0; j < nbBarsToDraw; j++) {
+      for(i = 0; i < barWidth; i++) {
+        // x = + 2 5 8 11
+        display.drawLine(batteryTopLeftX + 2 + (j * (barWidth + 1)) + i, batteryTopLeftY + 2, batteryTopLeftX + 2 + (j * (barWidth + 1)) + i, batteryTopLeftY + 2 + barHeight, GxEPD_BLACK);
+      }
     }
-    if (percentage > 25) {
-        display.drawLine(leftMargin + textOffsetX + 5, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 5, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
-        display.drawLine(leftMargin + textOffsetX + 6, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 6, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
-    }
-    if (percentage > 50) {
-        display.drawLine(leftMargin + textOffsetX + 8, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 8, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
-        display.drawLine(leftMargin + textOffsetX + 9, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 9, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
-    }
-    if (percentage > 75) {
-        display.drawLine(leftMargin + textOffsetX + 11, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 11, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
-        display.drawLine(leftMargin + textOffsetX + 12, colorTextY + batteryTopMargin + 2, leftMargin + textOffsetX + 12, colorTextY + batteryTopMargin + 4, GxEPD_BLACK);
-    }
-
-
+    
     // Draw the second rectangle (for tomorrow)
     display.drawRoundRect(secondRectX, topMargin, rectWidth, rectHeight, borderRadius, GxEPD_BLACK);
     // Draw date for tomorrow
