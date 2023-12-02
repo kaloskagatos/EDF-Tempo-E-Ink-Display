@@ -302,7 +302,6 @@ void displayInfo() {
     int nbBarsToDraw = round(percentage / 25.0);
     for (j = 0; j < nbBarsToDraw; j++) {
       for(i = 0; i < barWidth; i++) {
-        // x = + 2 5 8 11
         display.drawLine(batteryTopLeftX + 2 + (j * (barWidth + 1)) + i, batteryTopLeftY + 2, batteryTopLeftX + 2 + (j * (barWidth + 1)) + i, batteryTopLeftY + 2 + barHeight, GxEPD_BLACK);
       }
     }
