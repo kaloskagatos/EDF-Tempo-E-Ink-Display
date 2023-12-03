@@ -14,6 +14,10 @@
 #include <Fonts/FreeSansBold12pt7b.h>
 #include <Fonts/FreeSansBold18pt7b.h>
 #include <Fonts/FreeSansBold24pt7b.h>
+#include <Preferences.h>
+
+Preferences preferences;
+
 
 #define DEBUG_GRID 0
 
@@ -24,8 +28,9 @@ const char *ntpServer = "pool.ntp.org";
 const char *accessPointName = "TempoAP";
 
 // Global variables to store TEMPO information
-String todayColor = "N/A";
-String tomorrowColor = "N/A";
+#define DAY_NOT_AVAILABLE "N/A" 
+String todayColor = DAY_NOT_AVAILABLE;
+String tomorrowColor = DAY_NOT_AVAILABLE;
 
 String remainingBlueDays = "???";
 String remainingWhiteDays = "??";
@@ -34,11 +39,28 @@ String remainingRedDays = "??";
 bool wifiSucceeded = true;
 int currentLinePos = 0;
 
+
+const int   PIN_BAT           = 35; //adc for bat voltage
+const float CALIBRATION_BAT_V = 1.7; 
+// Seuils de tension pour la batterie (pour une batterie Li-ion)
+const float VOLTAGE_100       = 4.2;     // Tension de batterie pleine
+const float VOLTAGE_0         = 3.5;     // Tension de batterie vide
+
 int batteryPercentage = 0;
 float batteryVoltage = 0.0;
 
+// Délai avant réessai en cas d'échec de récupération du lendemain
+const int RETRY_DELAY_MIN = 1 ;
+const int RETRY_COUNT = 3 ;
+
+// Flag  indiquant qu'on a récupéré les infos du jour et de lendemain
+bool isTodayColorFound = false ;
+bool isTomorrowColorFound = false ;
+
+
 void setup()
 {
+    preferences.begin("eTempo", false); 
     setlocale(LC_TIME, "fr_FR.UTF-8");
 
     Serial.begin(115200);
@@ -84,6 +106,7 @@ void setup()
     // si affichage précédent
     display.fillScreen(GxEPD_WHITE);
 
+    // Récupération des infos
     fetchTempoInformation();
 
     // Display info
@@ -127,13 +150,6 @@ bool connectToWiFi() {
     return true;
 }
 
-
-const int   PIN_BAT           = 35; //adc for bat voltage
-const float CALIBRATION_BAT_V = 1.7; 
-// Seuils de tension pour la batterie (pour une batterie Li-ion)
-const float VOLTAGE_100       = 4.2;     // Tension de batterie pleine
-const float VOLTAGE_0         = 3.5;       // Tension de batterie vide
-const float MINIMUM_VOLTAGE   = 3.1; // if lower then minimum_voltage, back to sleep.....
 
 void updateBatteryPercentage( int &percentage, float &voltage ) {
 
@@ -449,20 +465,25 @@ void fetchTempoInformation() {
     } else {
         Serial.println("Wi-Fi non connecté !");
     }
+
+
+    // Fetch potentiellement nécessaire
+    isTodayColorFound = strcmp( todayColor.c_str(), DAY_NOT_AVAILABLE) != 0 ;
+    isTomorrowColorFound = strcmp( tomorrowColor.c_str(), DAY_NOT_AVAILABLE) != 0 ;;
 }
 
 // Structure pour stocker les heures de réveil
 struct WakeupTime {
   int hour;
   int minute;
+  bool retry;
 };
 
 // Tableau des heures de réveil
 const WakeupTime wakeupTimes[] = {
-  {0, 5},  // Réveil à 00:05
-  //{15, 50},  // debug
-  {11, 5}  // Réveil à 11:05
-};
+  {0, 5, false},  // Réveil à 00:05
+  {11, 5, true}  // Réveil à 11:05
+}; 
 
 // Fonction pour obtenir le temps actuel sous forme de structure tm
 bool getCurrentTime(struct tm *timeinfo) {
@@ -475,28 +496,42 @@ bool getCurrentTime(struct tm *timeinfo) {
 
 // Fonction pour calculer la prochaine heure de réveil
 time_t getNextWakeupTime() {
-  struct tm timeinfo;
+ struct tm timeinfo;
   if (!getCurrentTime(&timeinfo)) {
     return 0; // Retourner 0 si l'heure n'a pas pu être obtenue
+  }
+
+  // Les 2 couleurs ont été trouvée, on réinitialise le nombre d'essais
+  if( isTodayColorFound && isTomorrowColorFound)
+  {
+    preferences.putInt("retryCount", RETRY_COUNT); // Décrémenter le nombre de tentatives
   }
 
   time_t now = mktime(&timeinfo);
   time_t nextWakeup = 0;
   bool found = false;
+  int retryAttempts = preferences.getInt("retryCount", RETRY_COUNT); // Nombre de tentatives restantes
 
-  // Chercher la prochaine heure de réveil
   for (WakeupTime wakeup : wakeupTimes) {
-    struct tm futureTime = timeinfo;
-    futureTime.tm_hour = wakeup.hour;
-    futureTime.tm_min = wakeup.minute;
-    futureTime.tm_sec = 0;
-    time_t futureTimestamp = mktime(&futureTime);
-
-    if (futureTimestamp > now) {
-      // Si l'heure de réveil est dans le futur, c'est le prochain réveil
-      nextWakeup = futureTimestamp;
+    if ( (!isTodayColorFound || ( !isTomorrowColorFound && wakeup.retry))  && retryAttempts > 0 ) {
+      // Si réessai est nécessaire et il reste des tentatives
+      nextWakeup = now + RETRY_DELAY_MIN * 60; // Programmer le réveil pour 5 minutes plus tard
+      preferences.putInt("retryCount", retryAttempts - 1); // Décrémenter le nombre de tentatives
       found = true;
       break;
+    } else {
+      struct tm futureTime = timeinfo;
+      futureTime.tm_hour = wakeup.hour;
+      futureTime.tm_min = wakeup.minute;
+      futureTime.tm_sec = 0;
+      time_t futureTimestamp = mktime(&futureTime);
+
+      if (futureTimestamp > now) {
+        // Si l'heure de réveil est dans le futur, c'est le prochain réveil
+        nextWakeup = futureTimestamp;
+        found = true;
+        break;
+      }
     }
   }
 
