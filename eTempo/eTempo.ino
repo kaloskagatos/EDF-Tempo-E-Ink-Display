@@ -33,7 +33,9 @@ String remainingRedDays = "??";
 
 bool wifiSucceeded = true;
 int currentLinePos = 0;
-int percentage = 0;
+
+int batteryPercentage = 0;
+float batteryVoltage = 0.0;
 
 void setup()
 {
@@ -43,15 +45,8 @@ void setup()
     Serial.println("Démarrage...\n");
 
     // récupérer le voltage de la carte 
-    percentage = 0;
-    float voltage = analogRead(35) / 4096.0 * 7.05;
-    if (voltage > 1 ) { // Only display if there is a valid reading
-      percentage = 2836.9625 * pow(voltage, 4) - 43987.4889 * pow(voltage, 3) + 255233.8134 * pow(voltage, 2) - 656689.7123 * voltage + 632041.7303;
-      if (voltage >= 4.20) percentage = 100;
-      if (voltage <= 3.50) percentage = 0;
-    }
+    updateBatteryPercentage(batteryPercentage, batteryVoltage) ;
   
-
     // Initialize display
     display.init();
     displayLine("Initialisation...");
@@ -59,7 +54,7 @@ void setup()
     displayLine(WiFi.macAddress().c_str());
     displayLine("Batterie:");
     char line[24];
-    sprintf(line, "%5.3fv (%d%%)",voltage,percentage);
+    sprintf(line, "%5.3fv (%d%%)",batteryVoltage,batteryPercentage);
     displayLine(line);
     displayLine("SSID de config:");
     displayLine(accessPointName);
@@ -77,8 +72,8 @@ void setup()
     // Initialiser l'heure
     if( !initializeTime() ) 
     {
-      Serial.println("Erreur de synchronisation NTP, passage en deep sleep pendant 6 heures.");
-      displayLine("Err de conn ou desynchro, deep sleep.");
+      Serial.println("Erreur de synchronisation NTP: passage en deep sleep pendant 6 heures.");
+      displayLine("Err de conn ou de synchro: deep sleep.");
       display.update();
       // Deep sleep for 6 hours
       esp_sleep_enable_timer_wakeup(6 * 60 * 60 * 1000000LL);
@@ -130,6 +125,31 @@ bool connectToWiFi() {
 
     Serial.println("Connecté au WiFi.");
     return true;
+}
+
+
+const int   PIN_BAT           = 35; //adc for bat voltage
+const float CALIBRATION_BAT_V = 1.7; 
+// Seuils de tension pour la batterie (pour une batterie Li-ion)
+const float VOLTAGE_100       = 4.2;     // Tension de batterie pleine
+const float VOLTAGE_0         = 3.5;       // Tension de batterie vide
+const float MINIMUM_VOLTAGE   = 3.1; // if lower then minimum_voltage, back to sleep.....
+
+void updateBatteryPercentage( int &percentage, float &voltage ) {
+
+  percentage = 0;
+  // Lire la tension de la batterie
+  voltage = analogRead(PIN_BAT) / 4096.0 * 7.05;
+  percentage = 0;
+  if (voltage > 1) { // Afficher uniquement si la lecture est valide
+      percentage = static_cast<int>(2836.9625 * pow(voltage, 4) - 43987.4889 * pow(voltage, 3) + 255233.8134 * pow(voltage, 2) - 656689.7123 * voltage + 632041.7303);
+      // Ajuster le pourcentage en fonction des seuils de tension
+      if (voltage >= VOLTAGE_100) {
+          percentage = 100;
+      } else if (voltage <= VOLTAGE_0) {
+          percentage = 0;
+      }
+  }
 }
 
 bool initializeTime() {
@@ -191,7 +211,7 @@ String getDayOfWeekInFrench(int dayOfWeek) {
 }
 
 String getMonthInFrench(int month) {
-    const char* monthsFrench[] = {"jan", "fév", "mar", "avr", "mai", "juin", "juil", "aoû", "sep", "oct", "nov", "déc"};
+    const char* monthsFrench[] = {"jan", "fev", "mar", "avr", "mai", "juin", "juil", "aou", "sep", "oct", "nov", "dec"};
     return monthsFrench[(month - 1) % 12];  // Use modulo and adjust since tm_mon is [0,11]
 }
 
@@ -299,7 +319,7 @@ void displayInfo() {
     display.drawLine(batteryTopLeftX + batteryWidth + 2, batteryTopLeftY + 1, batteryTopLeftX + batteryWidth + 2, batteryTopLeftY + (batteryHeight - 1), GxEPD_BLACK);
     
     int i,j;
-    int nbBarsToDraw = round(percentage / 25.0);
+    int nbBarsToDraw = round(batteryPercentage / 25.0);
     for (j = 0; j < nbBarsToDraw; j++) {
       for(i = 0; i < barWidth; i++) {
         display.drawLine(batteryTopLeftX + 2 + (j * (barWidth + 1)) + i, batteryTopLeftY + 2, batteryTopLeftX + 2 + (j * (barWidth + 1)) + i, batteryTopLeftY + 2 + barHeight, GxEPD_BLACK);
