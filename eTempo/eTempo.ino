@@ -7,7 +7,7 @@
 #include <HTTPClient.h>
 #include "time.h"
 #include <WiFiManager.h> 
-#include<math.h>
+#include <math.h>
 
 #include <Fonts/FreeSans9pt7b.h>
 #include <Fonts/FreeSansBold9pt7b.h>
@@ -20,6 +20,7 @@ Preferences preferences;
 
 
 #define DEBUG_GRID 0
+#define DEBUG_RTE false
 
 GxIO_Class io(SPI, /*CS=5*/ SS, /*DC=*/17, /*RST=*/16);
 GxEPD_Class display(io, /*RST=*/16, /*BUSY=*/4);
@@ -41,7 +42,6 @@ int currentLinePos = 0;
 
 
 const int   PIN_BAT           = 35; //adc for bat voltage
-const float CALIBRATION_BAT_V = 1.7; 
 // Seuils de tension pour la batterie (pour une batterie Li-ion)
 const float VOLTAGE_100       = 4.2;     // Tension de batterie pleine
 const float VOLTAGE_0         = 3.5;     // Tension de batterie vide
@@ -152,8 +152,6 @@ bool connectToWiFi() {
 
 
 void updateBatteryPercentage( int &percentage, float &voltage ) {
-
-  percentage = 0;
   // Lire la tension de la batterie
   voltage = analogRead(PIN_BAT) / 4096.0 * 7.05;
   percentage = 0;
@@ -401,6 +399,13 @@ String mapTempoColor(const String& tempoColor) {
     return tempoColor; // If it's an unrecognized value, return as is.
 }
 
+String mapRteTempoColor(const String& tempoColor) {
+    if (tempoColor == "BLUE") return "BLEU*";
+    if (tempoColor == "WHITE") return "BLANC*";
+    if (tempoColor == "RED") return "ROUGE*";
+    return tempoColor; // If it's an unrecognized value, return as is.
+}
+
 void fetchTempoInformation() {
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
@@ -432,6 +437,41 @@ void fetchTempoInformation() {
             Serial.println("Échec de la récupération des couleurs d'aujourd'hui et de demain, code HTTP : " + String(httpCode));
         }
         http.end();
+
+        if (DEBUG_RTE || (todayColor != "???" && tomorrowColor == "???")) {
+          // En théorie on est un appel avant 11h du matin, la couleur de demain est encore inconnue.
+          // On tente un appel de l'api RTE
+          Serial.println("Preview RTE");
+          tempoStoreUrl = "https://www.services-rte.com/cms/open_data/v1/tempoLight";
+          http.begin(tempoStoreUrl);
+          int httpCode = http.GET();
+
+          if (httpCode > 0) {
+              DynamicJsonDocument doc(1024);
+              String payload = http.getString();
+              deserializeJson(doc, payload);
+              // il faut récupérer l'éventuelle valeur de demain
+              // formatage de la date de demain
+              
+              timeinfo.tm_mday++;
+              mktime(&timeinfo); // Normalize the tm structure after manual increment
+
+              char tomorrowDate[11];
+              strftime(tomorrowDate, sizeof(tomorrowDate), "%Y-%m-%d", &timeinfo);
+              String tomorrowDateString = String(tomorrowDate);
+              if (doc.containsKey("values") && doc["values"].containsKey(tomorrowDateString)) {
+                // WHITE RED BLUE
+                tomorrowColor = mapRteTempoColor(doc["values"][tomorrowDateString].as<String>());
+                Serial.println("Couleur preview de demain trouvée");
+                Serial.println(doc["values"][tomorrowDateString].as<String>());
+              } else {
+                Serial.println("Couleur preview de demain absente");
+              }
+          } else {
+              Serial.println("Échec de la récupération des couleurs preview RTE, code HTTP : " + String(httpCode));
+          }
+          http.end();
+        }
 
         // Second API to get the remaining days for each color
         String nbTempoDaysUrl = "https://particulier.edf.fr/services/rest/referentiel/getNbTempoDays?TypeAlerte=TEMPO";
@@ -482,6 +522,7 @@ struct WakeupTime {
 // Tableau des heures de réveil
 const WakeupTime wakeupTimes[] = {
   {0, 5, false},  // Réveil à 00:05
+  {7, 5, false},  // Réveil à 07:05 pour préview RTE
   {11, 5, true}  // Réveil à 11:05
 }; 
 
