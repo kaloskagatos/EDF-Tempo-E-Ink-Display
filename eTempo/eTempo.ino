@@ -10,17 +10,23 @@
 #include <math.h>
 
 #include <Fonts/FreeSans9pt7b.h>
-#include <Fonts/FreeSansBold9pt7b.h>
 #include <Fonts/FreeSansBold12pt7b.h>
-#include <Fonts/FreeSansBold18pt7b.h>
-#include <Fonts/FreeSansBold24pt7b.h>
-#include <Preferences.h>
+#include <Fonts/Org_01.h>
 
-Preferences preferences;
+#define PASSES 1
+#define RESTANTS 2
 
+// décommenter pour deguggage de l'affichage
+//#define DEBUG_GRID
 
-#define DEBUG_GRID 0
+// permet de forcer un appel de RTE à toute heure
 #define DEBUG_RTE false
+
+// pour afficher un petit picto de warning lorsqu'un retry est nécessaire
+#define DISPLAY_RETRY true
+
+// pour choisir si l'on veut afficher le compte de jours déjà passés (PASSES) ou restants (RESTANTS).
+#define AFFICHAGE_JOURS PASSES
 
 GxIO_Class io(SPI, /*CS=5*/ SS, /*DC=*/17, /*RST=*/16);
 GxEPD_Class display(io, /*RST=*/16, /*BUSY=*/4);
@@ -50,17 +56,40 @@ int batteryPercentage = 0;
 float batteryVoltage = 0.0;
 
 // Délai avant réessai en cas d'échec de récupération du lendemain
-const int RETRY_DELAY_MIN = 1 ;
-const int RETRY_COUNT = 3 ;
+const int RETRY_DELAY_MIN = 7;
+
+// arret de l'utilisation de la librairie préférences car elle écrit en NVS
+// qui a un nombre de cycles d'écritures limité.
+// passage en mémoire RTC qui est préservée sur le deep sleep.
+RTC_DATA_ATTR int retryAttempts = 5;
 
 // Flag  indiquant qu'on a récupéré les infos du jour et de lendemain
 bool isTodayColorFound = false ;
 bool isTomorrowColorFound = false ;
+bool isPreviewRTENeedRetry = false ;
 
+// Definitions
+void setup();
+void loop();
+bool connectToWiFi();
+void updateBatteryPercentage( int &percentage, float &voltage );
+bool initializeTime();
+void displayLine(String text);
+String getDayOfWeekInFrench(int dayOfWeek);
+String getMonthInFrench(int month);
+String getCurrentDateString();
+String getNextDayDateString();
+void displayInfo();
+String mapTempoColor(const String& tempoColor);
+String mapRteTempoColor(const String& tempoColor);
+void fetchTempoInformation();
+bool getCurrentTime(struct tm *timeinfo);
+time_t getNextWakeupTime();
+void goToDeepSleepUntilNextWakeup();
+void drawDebugGrid();
 
 void setup()
 {
-    preferences.begin("eTempo", false); 
     setlocale(LC_TIME, "fr_FR.UTF-8");
 
     Serial.begin(115200);
@@ -106,6 +135,9 @@ void setup()
     // si affichage précédent
     display.fillScreen(GxEPD_WHITE);
 
+#ifdef DEBUG_GRID
+    drawDebugGrid();
+#endif
     // Récupération des infos
     fetchTempoInformation();
 
@@ -363,12 +395,26 @@ void displayInfo() {
     display.fillCircle(x_bleu, bottomIndicatorY, circleRadius, GxEPD_BLACK);
     display.setFont(&FreeSans9pt7b);
     display.setCursor(x_bleu + textRemainOffsetX, bottomIndicatorY + textRemainOffsetY);
-    display.print(remainingBlueDays + "/300");
+    
+    if (AFFICHAGE_JOURS == RESTANTS) {
+      display.print(remainingBlueDays + "/300");
+    } else {
+      char nbJours[8];
+      sprintf(nbJours, "%d/300",(300 - remainingBlueDays.toInt()));
+      display.print(nbJours);
+    }
 
     // White circle
     display.drawCircle(x_blanc, bottomIndicatorY, circleRadius, GxEPD_BLACK);
     display.setCursor(x_blanc + textRemainOffsetX, bottomIndicatorY + textRemainOffsetY);
-    display.print(remainingWhiteDays + "/43");
+    if (AFFICHAGE_JOURS == RESTANTS) {
+      display.print(remainingWhiteDays + "/43");
+    } else {
+      char nbJours[8];
+      sprintf(nbJours, "%d/43",(43 - remainingWhiteDays.toInt()));
+      display.print(nbJours);
+    }
+    
 
     // Red rounded rectangle
     display.drawRoundRect(x_rouge, bottomIndicatorY - redRectHeight / 2, redRectWidth, redRectHeight, redRectRadius, GxEPD_BLACK);
@@ -380,15 +426,32 @@ void displayInfo() {
     display.drawLine(exclamationCenterX - 1, bottomIndicatorY + 4, exclamationCenterX - 1, bottomIndicatorY + 4, GxEPD_BLACK);
     display.drawLine(exclamationCenterX, bottomIndicatorY + 4, exclamationCenterX, bottomIndicatorY + 4, GxEPD_BLACK); // Adjacent line to thicken
 
-
     // ROUGE
     display.setCursor(x_rouge + textRemainExclamationOffsetX , bottomIndicatorY + textRemainOffsetY);
-    display.print(remainingRedDays + "/22");
+    if (AFFICHAGE_JOURS == RESTANTS) {
+      display.print(remainingRedDays + "/22");
+    } else {
+      char nbJours[8];
+      sprintf(nbJours, "%d/22",(22 - remainingRedDays.toInt()));
+      display.print(nbJours);
+    }
 
     // Ajout d'un symbole indiquant que le wifi ne s'est pas connecté
     if( !wifiSucceeded ){
       display.print( " w");
     }
+
+    // affichage de la nécessité de faire un retry:
+    if(DISPLAY_RETRY && (!isTodayColorFound || !isTomorrowColorFound || isPreviewRTENeedRetry)){
+      int retryX = secondRectX + textOffsetX;
+      int retryY = colorTextY + 4;
+      display.fillTriangle(retryX, retryY + 15, retryX + 16, retryY + 15, retryX + 8, retryY + 5, GxEPD_BLACK);
+      display.setCursor(retryX + 8, retryY + 14);
+      display.setTextColor(GxEPD_WHITE);
+      display.setFont(&Org_01);
+      display.print("!");      
+    }
+  
 }
 
 String mapTempoColor(const String& tempoColor) {
@@ -438,6 +501,7 @@ void fetchTempoInformation() {
         }
         http.end();
 
+        isPreviewRTENeedRetry = false;
         if (DEBUG_RTE || (todayColor != "???" && tomorrowColor == "???")) {
           // En théorie on est un appel avant 11h du matin, la couleur de demain est encore inconnue.
           // On tente un appel de l'api RTE
@@ -464,8 +528,16 @@ void fetchTempoInformation() {
                 tomorrowColor = mapRteTempoColor(doc["values"][tomorrowDateString].as<String>());
                 Serial.println("Couleur preview de demain trouvée");
                 Serial.println(doc["values"][tomorrowDateString].as<String>());
+                if (tomorrowColor == "null") {
+                  Serial.println("Null => Retry");
+                  tomorrowColor = "???*";
+                  isPreviewRTENeedRetry = true;
+                }
               } else {
                 Serial.println("Couleur preview de demain absente");
+                // on devra programmer un rallumage pour tenter de récupérer
+                // la couleur un peu plus tard
+                isPreviewRTENeedRetry = true;
               }
           } else {
               Serial.println("Échec de la récupération des couleurs preview RTE, code HTTP : " + String(httpCode));
@@ -508,8 +580,8 @@ void fetchTempoInformation() {
 
 
     // Fetch potentiellement nécessaire
-    isTodayColorFound = strcmp( todayColor.c_str(), DAY_NOT_AVAILABLE) != 0 ;
-    isTomorrowColorFound = strcmp( tomorrowColor.c_str(), DAY_NOT_AVAILABLE) != 0 ;;
+    isTodayColorFound = strcmp( todayColor.c_str(), DAY_NOT_AVAILABLE) != 0;
+    isTomorrowColorFound = strcmp( tomorrowColor.c_str(), DAY_NOT_AVAILABLE) != 0;
 }
 
 // Structure pour stocker les heures de réveil
@@ -522,7 +594,7 @@ struct WakeupTime {
 // Tableau des heures de réveil
 const WakeupTime wakeupTimes[] = {
   {0, 5, false},  // Réveil à 00:05
-  {7, 5, false},  // Réveil à 07:05 pour préview RTE
+  {6, 30, true},  // Réveil à 06:30 pour préview RTE
   {11, 5, true}  // Réveil à 11:05
 }; 
 
@@ -543,21 +615,20 @@ time_t getNextWakeupTime() {
   }
 
   // Les 2 couleurs ont été trouvée, on réinitialise le nombre d'essais
-  if( isTodayColorFound && isTomorrowColorFound)
+  if( isTodayColorFound && isTomorrowColorFound && !isPreviewRTENeedRetry)
   {
-    preferences.putInt("retryCount", RETRY_COUNT); // Décrémenter le nombre de tentatives
+    retryAttempts = 3;
   }
 
   time_t now = mktime(&timeinfo);
   time_t nextWakeup = 0;
   bool found = false;
-  int retryAttempts = preferences.getInt("retryCount", RETRY_COUNT); // Nombre de tentatives restantes
-
+  
   for (WakeupTime wakeup : wakeupTimes) {
-    if ( (!isTodayColorFound || ( !isTomorrowColorFound && wakeup.retry))  && retryAttempts > 0 ) {
+    if ((!isTodayColorFound || ( !isTomorrowColorFound && wakeup.retry) || (isPreviewRTENeedRetry && wakeup.retry))  && retryAttempts > 0 ) {
       // Si réessai est nécessaire et il reste des tentatives
       nextWakeup = now + RETRY_DELAY_MIN * 60; // Programmer le réveil pour 5 minutes plus tard
-      preferences.putInt("retryCount", retryAttempts - 1); // Décrémenter le nombre de tentatives
+      retryAttempts -= 1; // Décrémenter le nombre de tentatives
       found = true;
       break;
     } else {
@@ -633,7 +704,7 @@ void goToDeepSleepUntilNextWakeup() {
 }
 
 
-#if DEBUG_GRID
+#ifdef DEBUG_GRID
 void drawDebugGrid()
 {
     int gridSpacing = 10; // Espacement entre les lignes de la grille
