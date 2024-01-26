@@ -2,7 +2,7 @@
 
 ## 📝 Description Générale
 
-Ce dépôt contient le code source pour un dispositif qui affiche les informations relatives au tarif TEMPO d'EDF sur un écran E-Ink, en utilisant un microcontrôleur ESP32. Le dispositif récupère les données TEMPO en temps réel via une API et affiche la couleur du jour et du lendemain, ainsi que le nombre de jours restants pour chaque couleur TEMPO.
+Ce dépôt contient le code source pour un dispositif qui affiche les informations relatives au tarif TEMPO d'EDF sur un écran E-Ink, en utilisant un microcontrôleur ESP32. Le dispositif récupère les données TEMPO en temps réel via une API et affiche la couleur du jour et du lendemain, ainsi que le nombre de jours déjà effectués pour chaque couleur TEMPO.
 
 ![eTempo Display](doc/eTempo.jpg)
 
@@ -18,16 +18,18 @@ Pour plus d'informations sur WiFiManager, visitez [WiFiManager GitHub](https://g
 
 ## ⏰ Heures de Réveil Préprogrammées
 
-Le dispositif est programmé pour se réveiller à deux moments précis chaque jour : à 00h05 et à 11h05. Cela permet de synchroniser l'heure via NTP et de mettre à jour l'affichage avec les informations TEMPO les plus récentes, tout en restant en sommeil profond le reste du temps pour économiser de l'énergie.
+Le dispositif est programmé pour se réveiller à trois moments précis chaque jour : à 00h05, 06h30 et à 11h05. Cela permet de synchroniser l'heure via NTP et de mettre à jour l'affichage avec les informations TEMPO les plus récentes, tout en restant en sommeil profond le reste du temps pour économiser de l'énergie. Le réveil de 6h30 essaye d'appeler une API de RTE qui donne une estimation de la couleur du lendemain. Cette couleur affichée à 6h30 est donc susceptible de changer à l'appel de 11h05.
 
 Il est possible de modifier le tableau wakeupTimes pour déclaler/ajouter des heures de réveils car EDF tarde parfois à publier les informations à 11h00
+
+Une gestion de rejeu des appels en échec est mise en place : un maximum de 5 essais sont effectués espacés chacun de 7 minutes
 
 ```cpp
 // Tableau des heures de réveil
 const WakeupTime wakeupTimes[] = {
-  {0, 5},  // Réveil à 00:05
-  //{15, 50},  // debug
-  {11, 5}  // Réveil à 11:05
+  {0, 5, false},  // Réveil à 00:05
+  {6, 30, true},  // Réveil à 06:30 pour préview RTE
+  {11, 5, true}  // Réveil à 11:05
 };
 ```
 
