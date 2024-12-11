@@ -1,4 +1,3 @@
-```markdown
 # Affichage TEMPO EDF sur E-Ink avec ESP32
 
 ## 📝 Description Générale
