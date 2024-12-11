@@ -1,3 +1,4 @@
+```markdown
 # Affichage TEMPO EDF sur E-Ink avec ESP32
 
 ## 📝 Description Générale
@@ -26,10 +27,10 @@ Une gestion de rejeu des appels en échec est mise en place : un maximum de 5 es
 
 ```cpp
 // Tableau des heures de réveil
-const WakeupTime wakeupTimes[] = {
-  {0, 5, false},  // Réveil à 00:05
-  {6, 30, true},  // Réveil à 06:30 pour préview RTE
-  {11, 5, true}  // Réveil à 11:05
+TempoApp::wakeupTimes[] = {
+    {0, 5, false}, // Réveil à 00:05 pas de retry
+    {6, 31, true}, // Réveil à 06:31 pour préview RTE avec retry
+    {11, 5, false} // Réveil à 11:05 pas de retry
 };
 ```
 
@@ -39,10 +40,25 @@ const WakeupTime wakeupTimes[] = {
   - [Lien vers le produit](https://www.lilygo.cc/products/t5-v2-3-1)
 - **Batterie**: Lithium Polymère 3,7V 820mAh
 
-## Pré-requis 
+## Pré-requis
 
 * https://github.com/ZinggJM/GxEPD
 * https://github.com/tzapu/WiFiManager
+
+## 🛠️ Configuration de l'Environnement de Développement
+
+### PlatformIO
+
+Pour les utilisateurs de PlatformIO, le code source est situé dans le dossier `src/main`.
+
+### Arduino IDE
+
+Pour les utilisateurs de l'IDE Arduino, le fichier principal est `eTempo/eTempo.ino`.
+Important: Activez `Tools/Partition Scheme/Huge App` pour résoudre les erreurs de mémoire lors de la compilation.
+
+## 🖋️ Interface ITempoColorService
+
+Ce projet intègre une interface `ITempoColorService` qui facilite la gestion de plusieurs fournisseurs de données pour les jours TEMPO. Actuellement, quatre fournisseurs sont implémentés, et il est possible d'ajouter d'autres fournisseurs au besoin.
 
 ## 📄 Licence
 

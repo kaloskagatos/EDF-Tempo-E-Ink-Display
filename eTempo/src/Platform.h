@@ -6,14 +6,9 @@
 #include <Arduino.h>
 #include <pgmspace.h>
 
-#ifdef FULL_NLOHMANN_JSON_PATH
-#include <nlohmann/json.hpp>
-#else
-#include "my_nlohmann/json.hpp"
-#endif
-using nlohmann::json;
 
-// TODO: define pour supprimer les debug
+#include "my_nlohmann/json.hpp"
+using nlohmann::json;
 
 #define DEBUG_INIT() Serial.begin(9600)
 #define DEBUG_PRINT(x) Serial.print(x)
@@ -35,7 +30,7 @@ using String = std::string;
 
 #define PROGMEM
 
-#include <nlohmann/json.hpp>
+#include "my_nlohmann/json.hpp"
 using nlohmann::json;
 
 #endif

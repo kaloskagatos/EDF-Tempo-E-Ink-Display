@@ -28,6 +28,7 @@ include_directories(
     ${NLOHMANN_JSON_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/app
     ${CMAKE_SOURCE_DIR}/../eTempo/src
+    ${CMAKE_SOURCE_DIR}/../eTempo/my_nlohmann
     ${CMAKE_SOURCE_DIR}/../eTempo/
 )
 
