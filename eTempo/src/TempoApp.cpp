@@ -24,9 +24,9 @@ const char *TempoApp::ntpServer = WifiConfig::NTP_SERVER;
 const char *TempoApp::accessPointName = WifiConfig::ACCESS_POINT_NAME;
 
 const TempoApp::WakeupTime TempoApp::wakeupTimes[] = {
-    {0, 5, false}, // Réveil à 00:05 pas de retry
-    {6, 31, true}, // Réveil à 06:31 pour préview RTE avec retry
-    {11, 5, false} // Réveil à 11:05 pas de retry
+    {0, 5, false},  // Réveil à 00:05 pas de retry
+    {6, 31, false}, // Réveil à 06:31 pour préview RTE pas de retry
+    {11, 5, true}   // Réveil à 11:05 avec retry
 };
 
 const char DAY_NOT_AVAILABLE[] PROGMEM = "N/A";

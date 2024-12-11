@@ -27,9 +27,9 @@ Une gestion de rejeu des appels en échec est mise en place : un maximum de 5 es
 ```cpp
 // Tableau des heures de réveil
 TempoApp::wakeupTimes[] = {
-    {0, 5, false}, // Réveil à 00:05 pas de retry
-    {6, 31, true}, // Réveil à 06:31 pour préview RTE avec retry
-    {11, 5, false} // Réveil à 11:05 pas de retry
+    {0, 5, false},  // Réveil à 00:05 pas de retry
+    {6, 31, false}, // Réveil à 06:31 pour préview, pas de retry
+    {11, 5, true}   // Réveil à 11:05 avec retry
 };
 ```
 
