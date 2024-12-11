@@ -33,7 +33,7 @@ const char DAY_NOT_AVAILABLE[] PROGMEM = "N/A";
 const char REMAINING_DAY_COLOR[] PROGMEM = "<?>";
 
 const char MSG_WIFI_ERROR[] PROGMEM = "Erreur de connexion";
-const char MSG_NTP_SYNC_ERROR[] PROGMEM = "Erreur de synchro NTP: deep sleep 6 h.";
+const char MSG_NTP_SYNC_ERROR[] PROGMEM = "Erreur de synchro NTP.";
 const char MSG_FETCH_ERROR[] PROGMEM = "Pas de données. Programmation d'un réveil.";
 const char MSG_WIFI_NOT_CONNECTED[] PROGMEM = "Wi-Fi non connecté !";
 const char MSG_SEASON_FETCH_ERROR[] PROGMEM = "Echec de récupération de la saison.";
@@ -99,8 +99,8 @@ void TempoApp::run()
       DEBUG_PRINTLN(MSG_NTP_SYNC_ERROR);
       displayLine(MSG_NTP_SYNC_ERROR);
       display.update();
-      // Deep sleep for 6 hours
-      esp_sleep_enable_timer_wakeup(6 * 60 * 60 * 1000000LL);
+      // Deep sleep for 1 minute
+      esp_sleep_enable_timer_wakeup(1 * 60 * 1000000LL);
       esp_deep_sleep_start();
       return;
    }
