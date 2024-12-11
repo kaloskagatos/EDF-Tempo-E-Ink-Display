@@ -1,0 +1,18 @@
+{
+    "name": "MyTempoApi",
+    "version": "1.0.0",
+    "description": "Bibliothèque Tempo API pour PlatformIO",
+    "keywords": [
+        "tempo",
+        "api"
+    ],
+    "authors": [
+        {
+            "name": "Votre Nom",
+            "email": "votre.email@example.com"
+        }
+    ],
+    "license": "MIT",
+    "frameworks": "arduino",
+    "platforms": "espressif32"
+}

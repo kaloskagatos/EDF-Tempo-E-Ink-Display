@@ -1,32 +1,71 @@
-# Prerequisites
-*.d
+# Ignorer les dossiers générés par PlatformIO
+.pio/
+.vscode/
 
-# Compiled Object files
-*.slo
-*.lo
+# Ignorer les fichiers de configuration spécifiques à l'environnement
+*.code-workspace
+*.ide
+*.prev
+one.txt
+
+# Ignorer les fichiers temporaires et de compilation
+*.exe
 *.o
 *.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
+*.elf
+*.bin
+*.hex
+*.d
 *.a
-*.lib
+*.suo
+*.swp
+*.swn
+*.tmp
+*.log
+*.bak
 
-# Executables
-*.exe
+# Ignorer les fichiers générés par CMake
+CMakeFiles/
+CMakeCache.txt
+*.cmake
+build.ninja
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+Testing/
+
+# Ignorer les fichiers et dossiers générés par Ninja
+.ninja_deps
+.ninja_log
+
+# Ignorer les fichiers spécifiques à Qt Creator
+*.qtc_clangd/
+CMakeLists.txt.user
+*.pro.user
+*.qmake.stash
+*.qmake.cache
+
+# Ignorer les fichiers spécifiques aux compilateurs et outils
+*.gch
 *.out
-*.app
+*.dep
+
+# Ignorer les bibliothèques externes non versionnées
+external/
+lib/
+include/
+
+# Ignorer les fichiers spécifiques à Arduino
+*.ino.cpp
+*.ino.d
+*.ino.elf
+*.ino.hex
+*.ino.bin
+*.ino.s
+
+# Ignorer vos dossiers spécifiques mentionnés
+V2_____/
+tests/.cmake/
+tests/.ninja_deps
+tests/.ninja_log
+tests/.qtc_cl

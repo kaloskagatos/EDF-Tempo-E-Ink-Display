@@ -1,7 +1,7 @@
-// Inclusion relative à app pour Arduino
-// Ce fichier est le point d'entrée principal pour l'application lorsqu'elle est compilée avec l'IDE Arduino.
-// Contrairement à PlatformIO, l'IDE Arduino nécessite une inclusion relative dans certains cas.
-#include "src/TempoApp.h" 
+// Inclusion pour PlatformIO
+// Ce fichier est le point d'entrée principal pour l'application lorsque celle-ci est compilée avec PlatformIO.
+// PlatformIO utilise un environnement de build spécifique et s'attend à ce que le fichier d'entrée soit défini sous "src/main.cpp".
+#include "TempoApp.h"
 
 // Création d'une instance unique de l'application
 TempoApp app;
