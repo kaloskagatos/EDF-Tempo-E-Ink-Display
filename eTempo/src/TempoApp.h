@@ -60,6 +60,8 @@ private:
 
     String todayColor;
     String tomorrowColor;
+    TempoColor todayColorEnum;
+    TempoColor tomorrowColorEnum;
     String remainingBlueDays;
     String remainingWhiteDays;
     String remainingRedDays;
@@ -90,5 +92,10 @@ private:
     // arret de l'utilisation de la librairie préférences, passage en mémoire RTC
     // Nombre de tentatives pour les retries
     static RTC_DATA_ATTR int retryAttempts;
+    static RTC_DATA_ATTR TempoColor lastTodayColor;
+    static RTC_DATA_ATTR TempoColor lastTomorrowColor;
+    static RTC_DATA_ATTR int lastBlueDays;
+    static RTC_DATA_ATTR int lastWhiteDays;
+    static RTC_DATA_ATTR int lastRedDays;
 };
 #endif
