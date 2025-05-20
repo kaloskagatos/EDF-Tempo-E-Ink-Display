@@ -558,6 +558,10 @@ bool TempoApp::getCurrentSeason(String &season)
 
 bool TempoApp::fetchTempoInformation()
 {
+   // Valeurs par défaut au cas où aucun service ne fournisse d'informations
+   TempoColor today = TempoColor::UNKNOWN;
+   TempoColor tomorrow = TempoColor::UNKNOWN;
+
    if (WiFi.status() == WL_CONNECTED)
    {
 
@@ -606,17 +610,29 @@ bool TempoApp::fetchTempoInformation()
          return false;
       }
 
-      TempoColor today = manager.getTodayColor();
-      TempoColor tomorrow = manager.getTomorrowColor();
+      today = manager.getTodayColor();
+      tomorrow = manager.getTomorrowColor();
 
-      // Récupération des jours
-      const int bleu = manager.getBlueDaysPlaced();
-      const int blanc = manager.getWhiteDaysPlaced();
-      const int rouge = manager.getRedDaysPlaced();
+      // Conversion en String - si la couleur n'est pas connue, on conserve
+      // la valeur indiquant l'absence d'information.
+      if (today == TempoColor::UNKNOWN)
+      {
+         todayColor = DAY_NOT_AVAILABLE;
+      }
+      else
+      {
+         todayColor = toString(today);
+      }
 
-      // Conversion en String
-      todayColor = toString(today);
-      tomorrowColor = toString(tomorrow);
+      if (tomorrow == TempoColor::UNKNOWN)
+      {
+         tomorrowColor = DAY_NOT_AVAILABLE;
+      }
+      else
+      {
+         tomorrowColor = toString(tomorrow);
+      }
+
       remainingRedDays = manager.getRedDaysPlaced();
       remainingWhiteDays = manager.getWhiteDaysPlaced();
       remainingBlueDays = manager.getBlueDaysPlaced();
@@ -626,9 +642,9 @@ bool TempoApp::fetchTempoInformation()
       DEBUG_PRINTLN(MSG_WIFI_NOT_CONNECTED);
    }
 
-   // Fetch potentiellement nécessaire
-   isTodayColorFound = strcmp(todayColor.c_str(), DAY_NOT_AVAILABLE) != 0;
-   isTomorrowColorFound = strcmp(tomorrowColor.c_str(), DAY_NOT_AVAILABLE) != 0;
+   // Mise à jour des indicateurs de disponibilité des couleurs
+   isTodayColorFound = (today != TempoColor::UNKNOWN);
+   isTomorrowColorFound = (tomorrow != TempoColor::UNKNOWN);
    return true;
 }
 
