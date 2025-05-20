@@ -7,12 +7,26 @@
 #include "TempoColor.h"
 #include "HttpClientFactory.h"
 #include "TempoColorServiceManager.h"
+#include "BatteryMonitor.h"
+#include <cassert>
 #include <iostream>
 #include <ctime>
 #include "Platform.h"
 
 int main()
 {
+   // Battery calibration basic test
+   {
+      BatteryMonitor monitor;
+      monitor.setSimulatedVoltage(3.4f);
+      monitor.getPercentage(); // mark low
+      monitor.setSimulatedVoltage(4.25f);
+      monitor.getPercentage(); // update max
+      monitor.setSimulatedVoltage(4.25f);
+      int pct = monitor.getPercentage();
+      assert(pct == 100);
+   }
+
    // Define the season and period
    const String season = "2024-2025";
 
