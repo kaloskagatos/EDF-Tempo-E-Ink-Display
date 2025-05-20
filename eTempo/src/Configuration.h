@@ -16,9 +16,9 @@ struct WifiConfig
 {
     static constexpr const char *NTP_SERVER = "pool.ntp.org";
     static constexpr const char *ACCESS_POINT_NAME = "TempoAP";
-    static const int WIFI_TIMEOUT = 240; // Seconds
+    static const int WIFI_TIMEOUT = 60; // Seconds
     static const int WIFI_CONNECT_RETRIES = 3;
-    static const int WIFI_CONNECT_TIMEOUT = 10; // Seconds per attempt
+    static const int WIFI_CONNECT_TIMEOUT = 5; // Seconds per attempt
 };
 
 struct BatteryConfig

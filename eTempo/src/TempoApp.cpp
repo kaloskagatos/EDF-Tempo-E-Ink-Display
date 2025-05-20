@@ -20,6 +20,11 @@ extern const GFXfont FreeSansBold12pt7b PROGMEM;
 
 // Définition des variables statiques
 RTC_DATA_ATTR int TempoApp::retryAttempts = RetryConfig::INITIAL_RETRY_ATTEMPTS;
+RTC_DATA_ATTR TempoColor TempoApp::lastTodayColor = TempoColor::UNKNOWN;
+RTC_DATA_ATTR TempoColor TempoApp::lastTomorrowColor = TempoColor::UNKNOWN;
+RTC_DATA_ATTR int TempoApp::lastBlueDays = -1;
+RTC_DATA_ATTR int TempoApp::lastWhiteDays = -1;
+RTC_DATA_ATTR int TempoApp::lastRedDays = -1;
 const char *TempoApp::ntpServer = WifiConfig::NTP_SERVER;
 const char *TempoApp::accessPointName = WifiConfig::ACCESS_POINT_NAME;
 
@@ -59,7 +64,10 @@ void TempoApp::run()
 {
    setlocale(LC_TIME, "fr_FR.UTF-8");
 
-   Serial.begin(115200);
+   DEBUG_INIT();
+#ifdef ARDUINO
+   setCpuFrequencyMhz(80);
+#endif
 
    // récupérer le voltage de la carte
    int batteryPercentage = batteryMonitor.getPercentage();
@@ -79,6 +87,28 @@ void TempoApp::run()
    displayLine("SSID de config:");
    displayLine(accessPointName);
    display.update();
+
+   struct tm rtcTime;
+   bool haveRtc = getLocalTime(&rtcTime, 0);
+   bool earlySlot = haveRtc && rtcTime.tm_hour == 0 && rtcTime.tm_min <= 5 &&
+                    lastTomorrowColor != TempoColor::UNKNOWN;
+   if (earlySlot)
+   {
+      todayColorEnum = lastTomorrowColor;
+      tomorrowColorEnum = TempoColor::UNKNOWN;
+      todayColor = toString(todayColorEnum);
+      tomorrowColor = DAY_NOT_AVAILABLE;
+      remainingBlueDays = String(lastBlueDays);
+      remainingWhiteDays = String(lastWhiteDays);
+      remainingRedDays = String(lastRedDays);
+      isTodayColorFound = true;
+      isTomorrowColorFound = false;
+      display.fillScreen(GxEPD_WHITE);
+      displayInfo();
+      display.update();
+      goToDeepSleepUntilNextWakeup();
+      return;
+   }
 
 // Connecter au WiFi
 #if 0
@@ -118,12 +148,23 @@ void TempoApp::run()
    // Récupération des infos
    if (fetchTempoInformation())
    {
-      // si affichage précédent
-      display.fillScreen(GxEPD_WHITE);
+      bool changed = (todayColorEnum != lastTodayColor) ||
+                     (tomorrowColorEnum != lastTomorrowColor) ||
+                     (remainingBlueDays.toInt() != lastBlueDays) ||
+                     (remainingWhiteDays.toInt() != lastWhiteDays) ||
+                     (remainingRedDays.toInt() != lastRedDays);
 
-      // Mise à jour de l'affichage
-      displayInfo();
-      display.update();
+      if (changed)
+      {
+         display.fillScreen(GxEPD_WHITE);
+         displayInfo();
+         display.update();
+         lastTodayColor = todayColorEnum;
+         lastTomorrowColor = tomorrowColorEnum;
+         lastBlueDays = remainingBlueDays.toInt();
+         lastWhiteDays = remainingWhiteDays.toInt();
+         lastRedDays = remainingRedDays.toInt();
+      }
    }
    else
    {
@@ -612,6 +653,8 @@ bool TempoApp::fetchTempoInformation()
 
       today = manager.getTodayColor();
       tomorrow = manager.getTomorrowColor();
+      todayColorEnum = today;
+      tomorrowColorEnum = tomorrow;
 
       // Conversion en String - si la couleur n'est pas connue, on conserve
       // la valeur indiquant l'absence d'information.
@@ -774,6 +817,10 @@ void TempoApp::goToDeepSleepUntilNextWakeup()
    // Configuration du réveil par le timer et mise en sommeil profond
    esp_sleep_enable_timer_wakeup((uint64_t)sleepDuration * 1000000ULL);
    DEBUG_PRINTLN(F("Hibernate sequence initiated. I’ll be back."));
+#ifdef ARDUINO
+   WiFi.disconnect(true);
+   WiFi.mode(WIFI_OFF);
+#endif
    esp_deep_sleep_start();
 }
 

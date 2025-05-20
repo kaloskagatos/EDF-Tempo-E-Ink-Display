@@ -7,11 +7,49 @@
 #include "TempoColor.h"
 #include "HttpClientFactory.h"
 #include "TempoColorServiceManager.h"
+#include "StubTempoColorService.h"
+#include "BatteryMonitor.h"
+#include <cassert>
 #include <iostream>
 #include <ctime>
 #include "Platform.h"
 
-int main()
+static int runUnitTests()
+{
+   // Battery calibration basic test
+   {
+      BatteryMonitor monitor;
+      monitor.setSimulatedVoltage(3.4f);
+      monitor.getPercentage(); // mark low
+      monitor.setSimulatedVoltage(4.25f);
+      monitor.getPercentage(); // update max
+      monitor.setSimulatedVoltage(4.25f);
+      int pct = monitor.getPercentage();
+      assert(pct == 100);
+   }
+
+   // Stub data aggregation test
+   {
+      TempoColorServiceManager mgr;
+      auto stub1 = new StubTempoColorService(TempoColor::BLUE, TempoColor::UNKNOWN,
+                                            10, 0, 0);
+      auto stub2 = new StubTempoColorService(TempoColor::UNKNOWN, TempoColor::RED,
+                                            0, 0, 5);
+      mgr.registerService(stub1);
+      mgr.registerService(stub2);
+      bool ok = mgr.fetchData();
+      assert(ok);
+      assert(mgr.getTodayColor() == TempoColor::BLUE);
+      assert(mgr.getTomorrowColor() == TempoColor::RED);
+      assert(mgr.getBlueDaysPlaced() == 10);
+      assert(mgr.getRedDaysPlaced() == 5);
+   }
+
+   std::cout << "All unit tests passed." << std::endl;
+   return 0;
+}
+
+static int runLiveApp()
 {
    // Define the season and period
    const String season = "2024-2025";
@@ -85,4 +123,13 @@ int main()
    std::cout << "jours_rouges_place : " << redDaysPlaced << " / " << totalRedDays << std::endl;
 
    return 0;
+}
+
+int main(int argc, char** argv)
+{
+   if (argc > 1 && String(argv[1]) == "--unittest")
+   {
+      return runUnitTests();
+   }
+   return runLiveApp();
 }
