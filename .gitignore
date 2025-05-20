@@ -69,3 +69,4 @@ tests/.cmake/
 tests/.ninja_deps
 tests/.ninja_log
 tests/.qtc_cl
+tests/build/
